@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import AdminDashboard from './pages/AdminDashboard';
 import UserDashboard from './pages/UserDashboard';
+import AIChatPage from './pages/AIChatPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { 
   Box, 
@@ -967,6 +968,9 @@ function AppContent() {
             <Route path="/category1" element={<ClassificationOne />} />
             <Route path="/category2" element={<ClassificationTwo />} />
             <Route path="/category3" element={<ClassificationThree />} />
+            
+            {/* AI Chat Route */}
+            <Route path="/chat" element={<AIChatPage />} />
             
             {/* Other routes can be added here */}
             <Route path="*" element={<Typography variant="h4">Page Not Found</Typography>} />
