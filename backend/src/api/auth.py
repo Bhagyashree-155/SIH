@@ -57,6 +57,7 @@ class UserResponse(BaseModel):
 
 # Simple auth models (email/password only)
 class SimpleRegister(BaseModel):
+    username: str
     email: EmailStr
     password: str
     role: UserRole = UserRole.END_USER
@@ -140,19 +141,20 @@ async def get_current_active_user(current_user: Annotated[User, Depends(get_curr
 # API Endpoints
 @router.post("/simple/register")
 async def simple_register(body: SimpleRegister):
-    existing = await User.find_one({"email": body.email})
+    # Ensure email and username are unique
+    existing = await User.find_one({"$or": [{"email": body.email}, {"username": body.username}]})
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Username or email already registered")
     hashed = get_password_hash(body.password)
     user = User(
-        username=body.email.split('@')[0],
+        username=body.username,
         email=body.email,
-        full_name=body.email,
+        full_name=body.username,
         hashed_password=hashed,
         role=body.role
     )
     await user.create()
-    return {"message": "registered", "user_id": str(user.id)}
+    return {"message": "registered", "user_id": str(user.id), "username": user.username, "email": user.email}
 
 
 @router.post("/simple/login")
@@ -161,7 +163,14 @@ async def simple_login(body: SimpleLogin):
     if not user or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_access_token({"sub": user.username})
-    return {"access_token": token, "token_type": "bearer", "role": user.role, "user_id": str(user.id)}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "role": user.role,
+        "user_id": str(user.id),
+        "username": user.username,
+        "email": user.email
+    }
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user_data: UserCreate):
     """Register a new user"""

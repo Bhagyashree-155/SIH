@@ -86,11 +86,15 @@ function AppContent() {
 
   const [isLoggedIn, setIsLoggedIn] = React.useState(authService.isLoggedIn());
   const [role, setRole] = React.useState(authService.getRole());
+  const [username, setUsername] = React.useState(authService.getUsername());
+  const [email, setEmail] = React.useState(authService.getEmail());
   
   React.useEffect(() => {
     const onAuth = () => {
       setIsLoggedIn(authService.isLoggedIn());
       setRole(authService.getRole());
+      setUsername(authService.getUsername());
+      setEmail(authService.getEmail());
     };
     window.addEventListener('auth-changed', onAuth);
     return () => window.removeEventListener('auth-changed', onAuth);
@@ -450,21 +454,25 @@ function AppContent() {
     }
   };
   
+  // Check if current route is auth page
+  const isAuthPage = currentPath === '/login' || currentPath === '/signup';
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#f8fafc' }}>
-      {/* App Bar */}
-      <AppBar 
-        position="fixed" 
-        className="glass-card"
-        sx={{ 
-          width: { md: `calc(100% - ${drawerWidth}px)` }, 
-          ml: { md: `${drawerWidth}px` },
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
-          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
-        }}
-      >
+      {/* App Bar - only show for non-auth pages */}
+      {!isAuthPage && (
+        <AppBar 
+          position="fixed" 
+          className="glass-card"
+          sx={{ 
+            width: { md: `calc(100% - ${drawerWidth}px)` }, 
+            ml: { md: `${drawerWidth}px` },
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(20px)',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+            boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
+          }}
+        >
         <Toolbar sx={{ px: 3 }}>
           <IconButton
             color="inherit"
@@ -480,89 +488,39 @@ function AppContent() {
             <MenuIcon />
           </IconButton>
           
-          <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <TextField
-              variant="outlined"
-              placeholder="Search tickets, users, or articles..."
-              size="small"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ color: '#9ca3af' }} />
-                  </InputAdornment>
-                )
-              }}
-              sx={{
-                width: '400px',
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '25px',
-                  backgroundColor: 'white',
-                  '& fieldset': {
-                    border: '1px solid #e5e7eb',
-                  },
-                  '&:hover fieldset': {
-                    border: '1px solid #3b82f6',
-                  },
-                  '&.Mui-focused fieldset': {
-                    border: '1px solid #3b82f6',
-                  },
-                },
-              }}
-            />
-          </Box>
+          <Box sx={{ flex: 1 }} />
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              sx={{
-                borderRadius: '25px',
-                textTransform: 'none',
-                fontWeight: 600,
-                px: 3,
-                py: 1,
-                background: 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)',
-                boxShadow: '0 4px 15px rgba(14, 165, 233, 0.3)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                  boxShadow: '0 6px 20px rgba(14, 165, 233, 0.4)',
-                }
-              }}
-            >
-              New Ticket
-            </Button>
-            
-            <IconButton sx={{ color: '#374151' }}>
-              <Badge badgeContent={5} color="error">
-                <NotificationsIcon />
-              </Badge>
-            </IconButton>
-            
             {isLoggedIn ? (
-              <Tooltip title={`${role === 'admin' ? 'Admin' : 'User'} - Click to logout`}>
-                <Avatar 
-                  onClick={() => {
-                    authService.logout();
-                    navigate('/login');
-                  }}
-                  sx={{ 
-                    width: 40, 
-                    height: 40, 
-                    cursor: 'pointer',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    fontSize: '16px',
+              <>
+                <Button 
+                  variant="outlined"
+                  sx={{
+                    borderRadius: '20px',
+                    textTransform: 'none',
                     fontWeight: 600,
-                    border: '2px solid rgba(59, 130, 246, 0.2)',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      border: '2px solid rgba(59, 130, 246, 0.4)',
-                      transform: 'scale(1.05)'
-                    }
+                    borderColor: '#3b82f6',
+                    color: '#1e40af',
+                    bgcolor: 'white',
+                    px: 2
                   }}
                 >
-                  {role === 'admin' ? 'A' : 'U'}
-                </Avatar>
-              </Tooltip>
+                  {username || (role === 'admin' ? 'Admin' : 'User')} • {email}
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={() => { authService.logout(); navigate('/login'); }}
+                  sx={{
+                    borderRadius: '20px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 2,
+                    background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+                  }}
+                >
+                  Logout
+                </Button>
+              </>
             ) : (
               <Button
                 variant="outlined"
@@ -584,13 +542,15 @@ function AppContent() {
             )}
           </Box>
         </Toolbar>
-      </AppBar>
+        </AppBar>
+      )}
 
-      {/* Sidebar */}
-      <Box
-        component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
-      >
+      {/* Sidebar - only show for non-auth pages */}
+      {!isAuthPage && (
+        <Box
+          component="nav"
+          sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+        >
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -617,15 +577,16 @@ function AppContent() {
         >
           {drawer}
         </Drawer>
-      </Box>
+        </Box>
+      )}
 
       {/* Main Content */}
       <Box
         component="main"
         className="flex-1 p-6"
         sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          mt: '80px'
+          width: { md: isAuthPage ? '100%' : `calc(100% - ${drawerWidth}px)` },
+          mt: isAuthPage ? '0' : '80px'
         }}
       >
         <Container maxWidth="xl" className="animate-fadeIn">
@@ -647,7 +608,7 @@ function AppContent() {
                       WebkitTextFillColor: 'transparent'
                     }}
                   >
-                    Welcome back, {isLoggedIn ? (role === 'admin' ? 'Admin' : 'User') : 'Guest'}! 👋
+                    Welcome back, {isLoggedIn ? (username || (role === 'admin' ? 'Admin' : 'User')) : 'Guest'}! 👋
                   </Typography>
                   <Typography variant="h6" sx={{ color: '#64748b', fontWeight: 500 }}>
                     Here's what's happening with your tickets today
