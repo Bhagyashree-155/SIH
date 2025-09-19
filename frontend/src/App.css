@@ -1,0 +1,91 @@
+/* Custom styles for the POWERGRID Ticketing App */
+
+.fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.slide-in {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Hover effects */
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+/* Custom button styles */
+.btn-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-weight: 600;
+  text-transform: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+}
+
+/* Loading animation */
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Status indicators */
+.status-open {
+  background-color: #fbbf24;
+  color: white;
+}
+
+.status-in-progress {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.status-resolved {
+  background-color: #10b981;
+  color: white;
+}
+
+.status-closed {
+  background-color: #6b7280;
+  color: white;
+}
+
+/* Priority indicators */
+.priority-low {
+  color: #10b981;
+}
+
+.priority-medium {
+  color: #fbbf24;
+}
+
+.priority-high {
+  color: #f59e0b;
+}
+
+.priority-urgent {
+  color: #ef4444;
+}
+
+.priority-critical {
+  color: #dc2626;
+}
