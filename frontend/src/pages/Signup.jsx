@@ -17,8 +17,9 @@ const Signup = () => {
     setError(''); setOk(''); setLoading(true);
     try {
       await authService.signup({ email, password, role });
-      setOk('Account created. You can login now.');
-      setTimeout(() => navigate('/login'), 800);
+      // Auto-login then go to dashboard
+      await authService.login({ email, password });
+      navigate('/');
     } catch (e) {
       setError('Email already registered');
     } finally {

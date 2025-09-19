@@ -12,6 +12,7 @@ export const authService = {
       localStorage.setItem('auth_token', data.access_token);
       localStorage.setItem('auth_role', data.role || 'end_user');
       localStorage.setItem('auth_user_id', data.user_id || '');
+      try { window.dispatchEvent(new Event('auth-changed')); } catch {}
     }
     return data;
   },
@@ -19,6 +20,7 @@ export const authService = {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_role');
     localStorage.removeItem('auth_user_id');
+    try { window.dispatchEvent(new Event('auth-changed')); } catch {}
   },
   getRole: () => localStorage.getItem('auth_role') || 'guest',
   isLoggedIn: () => !!localStorage.getItem('auth_token')

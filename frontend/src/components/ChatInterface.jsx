@@ -29,6 +29,7 @@ const ChatInterface = ({ ticketId, category, onTicketUpdate }) => {
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const pollRef = useRef(null);
 
   // Sender info (in dashboards this is a technician/agent)
   const senderInfo = {
@@ -56,7 +57,19 @@ const ChatInterface = ({ ticketId, category, onTicketUpdate }) => {
       const ticketData = await apiService.getTicket(ticketId);
       setMessages(ticketData.chat_messages || []);
     } catch (error) {
-      setError('Failed to load messages');
+      // Stop polling and unlink if ticket no longer exists (404)
+      const status = error?.response?.status;
+      if (status === 404) {
+        try { localStorage.removeItem('last_ticket_id'); } catch {}
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+        setError('Ticket not found. Please start a new conversation.');
+        setMessages([]);
+      } else {
+        setError('Failed to load messages');
+      }
       console.error('Error loading messages:', error);
     } finally {
       setIsLoading(false);
@@ -72,8 +85,8 @@ const ChatInterface = ({ ticketId, category, onTicketUpdate }) => {
     const pollInterval = setInterval(() => {
       loadTicketMessages();
     }, 5000); // Poll every 5 seconds
-    
-    return () => clearInterval(pollInterval);
+    pollRef.current = pollInterval;
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
   };
 
   const scrollToBottom = () => {

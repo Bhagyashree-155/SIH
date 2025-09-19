@@ -180,6 +180,9 @@ async def get_ticket(ticket_id: str):
             ],
             "ai_analysis": ticket.ai_analysis
         }
+    except HTTPException:
+        # Pass through 404 and other explicit statuses
+        raise
     except Exception as e:
         logger.error(f"Error getting ticket: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve ticket")

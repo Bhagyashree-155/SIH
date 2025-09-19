@@ -84,28 +84,40 @@ function AppContent() {
     setMobileOpen(!mobileOpen);
   };
 
-  const role = React.useMemo(() => authService.getRole(), []);
+  const [isLoggedIn, setIsLoggedIn] = React.useState(authService.isLoggedIn());
+  const [role, setRole] = React.useState(authService.getRole());
+  
+  React.useEffect(() => {
+    const onAuth = () => {
+      setIsLoggedIn(authService.isLoggedIn());
+      setRole(authService.getRole());
+    };
+    window.addEventListener('auth-changed', onAuth);
+    return () => window.removeEventListener('auth-changed', onAuth);
+  }, []);
+  
   const menuItems = React.useMemo(() => {
     const common = [
       { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon, color: '#3b82f6', path: '/' },
       { id: 'tickets', label: 'Tickets', icon: TicketIcon, color: '#10b981', badge: 12, path: '/tickets' },
       { id: 'knowledge', label: 'Knowledge Base', icon: KnowledgeIcon, color: '#8b5cf6', path: '/knowledge' },
       { id: 'chat', label: 'AI Chat', icon: ChatIcon, color: '#06b6d4', path: '/chat' },
+    ];
+    const adminOnly = [
       { id: 'category1', label: 'Hardware & Infrastructure', icon: Computer, color: '#3b82f6', path: '/category1' },
       { id: 'category2', label: 'Software & Digital Services', icon: BugReport, color: '#10b981', path: '/category2' },
       { id: 'category3', label: 'Access & Security', icon: Security, color: '#f59e0b', path: '/category3' },
-    ];
-    const adminOnly = [
       { id: 'users', label: 'Users', icon: PeopleIcon, color: '#f59e0b', path: '/users' },
       { id: 'settings', label: 'Settings', icon: SettingsIcon, color: '#6b7280', path: '/settings' },
     ];
     const authOptions = [
-      { id: 'login', label: 'Login', icon: PeopleIcon, color: '#06b6d4', path: '/login' },
-      { id: 'signup', label: 'Sign up', icon: PeopleIcon, color: '#06b6d4', path: '/signup' },
+      { id: 'login', label: 'Login', icon: PersonIcon, color: '#06b6d4', path: '/login' },
+      { id: 'signup', label: 'Sign up', icon: PersonIcon, color: '#06b6d4', path: '/signup' },
     ];
-    if (!authService.isLoggedIn()) return authOptions.concat(common);
+    
+    if (!isLoggedIn) return authOptions.concat(common);
     return role === 'admin' ? common.concat(adminOnly) : common;
-  }, [role]);
+  }, [isLoggedIn, role]);
 
   const stats = [
     { 
@@ -342,28 +354,31 @@ function AppContent() {
     if (!linkedTicketId) return;
     let stop = false;
     setIsDashboardPolling(true);
+    let interval;
     const fetchTicketMessages = async () => {
       try {
         const api = await import('./services/apiService.js');
         const data = await api.getTicket(linkedTicketId);
-        // Map ticket chat_messages into dashboard chat format
         const mapped = (data.chat_messages || []).map(m => ({
           text: m.content,
           sender: m.sender_type === 'user' ? 'user' : 'ai',
           timestamp: m.timestamp
         }));
-        // Keep intro message at top if present, then ticket messages
-        setMessages(prev => {
-          const intro = prev.length && !linkedTicketId ? prev : [];
-          return mapped.length ? mapped : prev;
-        });
+        setMessages(prev => (mapped.length ? mapped : prev));
       } catch (e) {
-        // ignore
+        const status = e?.response?.status;
+        if (status === 404) {
+          try { localStorage.removeItem('last_ticket_id'); } catch {}
+          setLinkedTicketId(null);
+          setIsDashboardPolling(false);
+          if (interval) clearInterval(interval);
+          stop = true;
+        }
       }
     };
     fetchTicketMessages();
-    const interval = setInterval(() => { if (!stop) fetchTicketMessages(); }, 5000);
-    return () => { stop = true; clearInterval(interval); setIsDashboardPolling(false); };
+    interval = setInterval(() => { if (!stop) fetchTicketMessages(); }, 5000);
+    return () => { stop = true; if (interval) clearInterval(interval); setIsDashboardPolling(false); };
   }, [linkedTicketId]);
   
   // Handle sending a message
@@ -523,26 +538,50 @@ function AppContent() {
               </Badge>
             </IconButton>
             
-            <Tooltip title="John Doe">
-              <Avatar 
-                sx={{ 
-                  width: 40, 
-                  height: 40, 
-                  cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  fontSize: '16px',
+            {isLoggedIn ? (
+              <Tooltip title={`${role === 'admin' ? 'Admin' : 'User'} - Click to logout`}>
+                <Avatar 
+                  onClick={() => {
+                    authService.logout();
+                    navigate('/login');
+                  }}
+                  sx={{ 
+                    width: 40, 
+                    height: 40, 
+                    cursor: 'pointer',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    fontSize: '16px',
+                    fontWeight: 600,
+                    border: '2px solid rgba(59, 130, 246, 0.2)',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      border: '2px solid rgba(59, 130, 246, 0.4)',
+                      transform: 'scale(1.05)'
+                    }
+                  }}
+                >
+                  {role === 'admin' ? 'A' : 'U'}
+                </Avatar>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="outlined"
+                onClick={() => navigate('/login')}
+                sx={{
+                  borderRadius: '20px',
+                  textTransform: 'none',
                   fontWeight: 600,
-                  border: '2px solid rgba(59, 130, 246, 0.2)',
-                  transition: 'all 0.2s ease',
+                  borderColor: '#3b82f6',
+                  color: '#3b82f6',
                   '&:hover': {
-                    border: '2px solid rgba(59, 130, 246, 0.4)',
-                    transform: 'scale(1.05)'
+                    borderColor: '#2563eb',
+                    backgroundColor: '#eff6ff'
                   }
                 }}
               >
-                JD
-              </Avatar>
-            </Tooltip>
+                Login
+              </Button>
+            )}
           </Box>
         </Toolbar>
       </AppBar>
@@ -608,7 +647,7 @@ function AppContent() {
                       WebkitTextFillColor: 'transparent'
                     }}
                   >
-                    Welcome back, John! 👋
+                    Welcome back, {isLoggedIn ? (role === 'admin' ? 'Admin' : 'User') : 'Guest'}! 👋
                   </Typography>
                   <Typography variant="h6" sx={{ color: '#64748b', fontWeight: 500 }}>
                     Here's what's happening with your tickets today
