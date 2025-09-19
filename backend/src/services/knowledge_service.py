@@ -9,8 +9,28 @@ from src.models.knowledge_base import (
     Solution, SolutionType, AutomatedAction, ArticleStatus
 )
 from src.ai.gemini_service import ClassificationResult, SolutionRecommendation, gemini_service
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+
+class KnowledgeSearchResult(BaseModel):
+    """Result from knowledge base search"""
+    article_id: str
+    title: str
+    content: str
+    relevance_score: float
+    matched_keywords: List[str]
+    solution_type: str
+    estimated_time: int
+
+
+class KnowledgeFragment(BaseModel):
+    """A fragment of knowledge extracted from text"""
+    content: str
+    keywords: List[str]
+    confidence: float
+    source: str
 
 
 class KnowledgeBaseService:

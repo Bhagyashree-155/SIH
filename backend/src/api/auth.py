@@ -55,6 +55,18 @@ class UserResponse(BaseModel):
     last_login: Optional[datetime] = None
 
 
+# Simple auth models (email/password only)
+class SimpleRegister(BaseModel):
+    email: EmailStr
+    password: str
+    role: UserRole = UserRole.END_USER
+
+
+class SimpleLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+
 # Password utilities
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
@@ -126,6 +138,30 @@ async def get_current_active_user(current_user: Annotated[User, Depends(get_curr
 
 
 # API Endpoints
+@router.post("/simple/register")
+async def simple_register(body: SimpleRegister):
+    existing = await User.find_one({"email": body.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    hashed = get_password_hash(body.password)
+    user = User(
+        username=body.email.split('@')[0],
+        email=body.email,
+        full_name=body.email,
+        hashed_password=hashed,
+        role=body.role
+    )
+    await user.create()
+    return {"message": "registered", "user_id": str(user.id)}
+
+
+@router.post("/simple/login")
+async def simple_login(body: SimpleLogin):
+    user = await User.find_one({"email": body.email})
+    if not user or not verify_password(body.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    token = create_access_token({"sub": user.username})
+    return {"access_token": token, "token_type": "bearer", "role": user.role, "user_id": str(user.id)}
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(user_data: UserCreate):
     """Register a new user"""

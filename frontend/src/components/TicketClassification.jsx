@@ -1,240 +1,150 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Card, 
-  CardContent, 
-  Grid, 
-  Chip,
-  LinearProgress,
-  Tooltip,
-  CircularProgress
+import React from 'react';
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  Button,
+  Avatar,
+  Chip
 } from '@mui/material';
 import {
-  BugReport,
-  Computer,
-  WifiOff,
-  Security,
-  Assignment,
-  ErrorOutline,
-  PriorityHigh,
-  HourglassEmpty,
-  CheckCircle,
-  Block
+  Computer as HardwareIcon,
+  BugReport as SoftwareIcon,
+  Security as SecurityIcon,
+  ArrowForward as ArrowForwardIcon
 } from '@mui/icons-material';
-import ticketService from '../services/ticketService';
+import { useNavigate } from 'react-router-dom';
 
 const TicketClassification = () => {
-  const [loading, setLoading] = useState(true);
-  const [classifications, setClassifications] = useState([]);
-  
-  // Icons mapping for categories
-  const categoryIcons = {
-    'Hardware': Computer,
-    'Software': BugReport,
-    'Network': WifiOff,
-    'Access Control': Security,
-    'Other': Assignment
-  };
-  
-  // Icons mapping for priorities
-  const priorityIcons = {
-    'Critical': ErrorOutline,
-    'High': PriorityHigh,
-    'Medium': Assignment,
-    'Low': Assignment
-  };
-  
-  // Icons mapping for statuses
-  const statusIcons = {
-    'Open': Assignment,
-    'In Progress': HourglassEmpty,
-    'Pending': HourglassEmpty,
-    'Resolved': CheckCircle,
-    'Closed': Block
-  };
-  
-  // Colors mapping
-  const colorMap = {
-    'Hardware': '#3b82f6',
-    'Software': '#10b981',
-    'Network': '#f59e0b',
-    'Access Control': '#6366f1',
-    'Other': '#64748b',
-    'Critical': '#ef4444',
-    'High': '#f59e0b',
-    'Medium': '#3b82f6',
-    'Low': '#10b981',
-    'Open': '#3b82f6',
-    'In Progress': '#f59e0b',
-    'Pending': '#6366f1',
-    'Resolved': '#10b981',
-    'Closed': '#64748b'
-  };
-  
-  useEffect(() => {
-    const loadClassifications = async () => {
-      try {
-        setLoading(true);
-        const data = await ticketService.fetchTicketClassifications();
-        
-        // Transform the data into the format needed for display
-        const formattedData = [
-          {
-            title: 'By Category',
-            items: data.categories.map(item => ({
-              name: item.name,
-              count: item.count,
-              color: colorMap[item.name] || '#64748b',
-              icon: categoryIcons[item.name] || Assignment
-            }))
-          },
-          {
-            title: 'By Priority',
-            items: data.priorities.map(item => ({
-              name: item.name,
-              count: item.count,
-              color: colorMap[item.name] || '#64748b',
-              icon: priorityIcons[item.name] || Assignment
-            }))
-          },
-          {
-            title: 'By Status',
-            items: data.statuses.map(item => ({
-              name: item.name,
-              count: item.count,
-              color: colorMap[item.name] || '#64748b',
-              icon: statusIcons[item.name] || Assignment
-            }))
-          }
-        ];
-        
-        setClassifications(formattedData);
-      } catch (error) {
-        console.error('Error loading classifications:', error);
-        // Set default data in case of error
-        setClassifications([
-          {
-            title: 'By Category',
-            items: [
-              { name: 'Hardware', count: 35, color: '#3b82f6', icon: Computer },
-              { name: 'Software', count: 28, color: '#10b981', icon: BugReport },
-              { name: 'Network', count: 22, color: '#f59e0b', icon: WifiOff },
-              { name: 'Access Control', count: 15, color: '#6366f1', icon: Security },
-              { name: 'Other', count: 10, color: '#64748b', icon: Assignment }
-            ]
-          },
-          {
-            title: 'By Priority',
-            items: [
-              { name: 'Critical', count: 8, color: '#ef4444', icon: ErrorOutline },
-              { name: 'High', count: 17, color: '#f59e0b', icon: PriorityHigh },
-              { name: 'Medium', count: 42, color: '#3b82f6', icon: Assignment },
-              { name: 'Low', count: 43, color: '#10b981', icon: Assignment }
-            ]
-          },
-          {
-            title: 'By Status',
-            items: [
-              { name: 'Open', count: 32, color: '#3b82f6', icon: Assignment },
-              { name: 'In Progress', count: 28, color: '#f59e0b', icon: HourglassEmpty },
-              { name: 'Pending', count: 15, color: '#6366f1', icon: HourglassEmpty },
-              { name: 'Resolved', count: 25, color: '#10b981', icon: CheckCircle },
-              { name: 'Closed', count: 10, color: '#64748b', icon: Block }
-            ]
-          }
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadClassifications();
-  }, []);
+  const navigate = useNavigate();
 
-  // Calculate total for percentages
-  const getTotalCount = (items) => {
-    return items.reduce((sum, item) => sum + item.count, 0);
+  const categories = [
+    {
+      id: 'hardware',
+      title: 'Hardware & Infrastructure',
+      description: 'Hardware issues, system failures, and physical infrastructure problems',
+      icon: HardwareIcon,
+      color: '#3b82f6',
+      gradient: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+      examples: ['Laptop not turning on', 'Printer issues', 'Network equipment failure', 'Power problems'],
+      path: '/category1'
+    },
+    {
+      id: 'software',
+      title: 'Software & Digital Services',
+      description: 'Software issues, application errors, and digital service problems',
+      icon: SoftwareIcon,
+      color: '#10b981',
+      gradient: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+      examples: ['Application crashes', 'Email problems', 'VPN connection issues', 'Software installation'],
+      path: '/category2'
+    },
+    {
+      id: 'security',
+      title: 'Access & Security',
+      description: 'Access control, permissions, and security-related issues',
+      icon: SecurityIcon,
+      color: '#f59e0b',
+      gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+      examples: ['Password reset', 'Account access', 'File permissions', 'Security settings'],
+      path: '/category3'
+    }
+  ];
+
+  const handleCategoryClick = (path) => {
+    navigate(path);
   };
 
   return (
     <Grid container spacing={3}>
-      {loading ? (
-        // Loading state
-        <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%', py: 5 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        // Data display
-        classifications.map((classification, index) => {
-          const total = getTotalCount(classification.items);
-          
-          return (
-            <Grid size={{ xs: 12, md: 4 }} key={index}>
-              <Card className="glass-card" sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                    {classification.title}
+      {categories.map((category) => (
+        <Grid item xs={12} md={4} key={category.id}>
+          <Card
+            sx={{
+              height: '100%',
+              cursor: 'pointer',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                transform: 'translateY(-8px) scale(1.02)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+              }
+            }}
+            onClick={() => handleCategoryClick(category.path)}
+          >
+            <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              {/* Header */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                <Avatar
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    background: category.gradient,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  <category.icon sx={{ fontSize: 28, color: 'white' }} />
+                </Avatar>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: '#1e293b', mb: 0.5 }}>
+                    {category.title}
                   </Typography>
-                  
-                  <Box sx={{ mt: 2 }}>
-                    {classification.items.map((item, idx) => {
-                      const percentage = Math.round((item.count / total) * 100);
-                      const ItemIcon = item.icon;
-                      
-                      return (
-                        <Box key={idx} sx={{ mb: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              {ItemIcon && (
-                                <ItemIcon sx={{ color: item.color, fontSize: 18 }} />
-                              )}
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {item.name}
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                {item.count}
-                              </Typography>
-                              <Chip 
-                                label={`${percentage}%`} 
-                                size="small" 
-                                sx={{ 
-                                  height: '20px', 
-                                  fontSize: '0.7rem',
-                                  backgroundColor: `${item.color}20`,
-                                  color: item.color,
-                                  fontWeight: 600
-                                }} 
-                              />
-                            </Box>
-                          </Box>
-                          <Tooltip title={`${percentage}% of tickets`}>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={percentage} 
-                              sx={{ 
-                                height: 6, 
-                                borderRadius: 1,
-                                backgroundColor: 'rgba(0,0,0,0.05)',
-                                '& .MuiLinearProgress-bar': {
-                                  backgroundColor: item.color,
-                                  borderRadius: 1
-                                }
-                              }} 
-                            />
-                          </Tooltip>
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          );
-        })
-      )}
+                  <Typography variant="body2" sx={{ color: '#64748b' }}>
+                    {category.description}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Examples */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="body2" sx={{ color: '#64748b', mb: 1.5, fontWeight: 600 }}>
+                  Common Issues:
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {category.examples.map((example, index) => (
+                    <Chip
+                      key={index}
+                      label={example}
+                      size="small"
+                      sx={{
+                        bgcolor: category.color + '20',
+                        color: category.color,
+                        fontWeight: 500,
+                        fontSize: '0.75rem',
+                        height: 24
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              {/* Action Button */}
+              <Box sx={{ mt: 'auto' }}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  endIcon={<ArrowForwardIcon />}
+                  sx={{
+                    background: category.gradient,
+                    borderRadius: '12px',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    py: 1.5,
+                    '&:hover': {
+                      background: category.gradient,
+                      opacity: 0.9,
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                >
+                  View Tickets
+                </Button>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      ))}
     </Grid>
   );
 };

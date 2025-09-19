@@ -4,6 +4,11 @@ import TicketClassification from './components/TicketClassification';
 import ClassificationOne from './pages/ClassificationOne';
 import ClassificationTwo from './pages/ClassificationTwo';
 import ClassificationThree from './pages/ClassificationThree';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import AdminDashboard from './pages/AdminDashboard';
+import UserDashboard from './pages/UserDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 import { 
   Box, 
   AppBar, 
@@ -59,6 +64,7 @@ import {
   MoreVert,
   Person as PersonIcon
 } from '@mui/icons-material';
+import authService from './services/authService';
 import './App.css';
 
 const drawerWidth = 280;
@@ -78,17 +84,28 @@ function AppContent() {
     setMobileOpen(!mobileOpen);
   };
 
-  const menuItems = React.useMemo(() => [
-    { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon, color: '#3b82f6', path: '/' },
-    { id: 'tickets', label: 'Tickets', icon: TicketIcon, color: '#10b981', badge: 12, path: '/tickets' },
-    { id: 'users', label: 'Users', icon: PeopleIcon, color: '#f59e0b', path: '/users' },
-    { id: 'knowledge', label: 'Knowledge Base', icon: KnowledgeIcon, color: '#8b5cf6', path: '/knowledge' },
-    { id: 'chat', label: 'AI Chat', icon: ChatIcon, color: '#06b6d4', path: '/chat' },
-    { id: 'category1', label: 'Category One', icon: Computer, color: '#3b82f6', path: '/category1' },
-    { id: 'category2', label: 'Category Two', icon: BugReport, color: '#10b981', path: '/category2' },
-    { id: 'category3', label: 'Category Three', icon: Security, color: '#f59e0b', path: '/category3' },
-    { id: 'settings', label: 'Settings', icon: SettingsIcon, color: '#6b7280', path: '/settings' },
-  ], []);
+  const role = React.useMemo(() => authService.getRole(), []);
+  const menuItems = React.useMemo(() => {
+    const common = [
+      { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon, color: '#3b82f6', path: '/' },
+      { id: 'tickets', label: 'Tickets', icon: TicketIcon, color: '#10b981', badge: 12, path: '/tickets' },
+      { id: 'knowledge', label: 'Knowledge Base', icon: KnowledgeIcon, color: '#8b5cf6', path: '/knowledge' },
+      { id: 'chat', label: 'AI Chat', icon: ChatIcon, color: '#06b6d4', path: '/chat' },
+      { id: 'category1', label: 'Hardware & Infrastructure', icon: Computer, color: '#3b82f6', path: '/category1' },
+      { id: 'category2', label: 'Software & Digital Services', icon: BugReport, color: '#10b981', path: '/category2' },
+      { id: 'category3', label: 'Access & Security', icon: Security, color: '#f59e0b', path: '/category3' },
+    ];
+    const adminOnly = [
+      { id: 'users', label: 'Users', icon: PeopleIcon, color: '#f59e0b', path: '/users' },
+      { id: 'settings', label: 'Settings', icon: SettingsIcon, color: '#6b7280', path: '/settings' },
+    ];
+    const authOptions = [
+      { id: 'login', label: 'Login', icon: PeopleIcon, color: '#06b6d4', path: '/login' },
+      { id: 'signup', label: 'Sign up', icon: PeopleIcon, color: '#06b6d4', path: '/signup' },
+    ];
+    if (!authService.isLoggedIn()) return authOptions.concat(common);
+    return role === 'admin' ? common.concat(adminOnly) : common;
+  }, [role]);
 
   const stats = [
     { 
@@ -206,7 +223,7 @@ function AppContent() {
 
   // Use location for active menu highlighting
   const location = useLocation();
-  // const navigate = useNavigate(); // Removed duplicate declaration
+  const navigate = useNavigate();
   const currentPath = location.pathname;
   
   // Find active section based on path
@@ -309,7 +326,8 @@ function AppContent() {
     sender: 'ai',
     timestamp: new Date().toISOString()
   }]);
-  const navigate = useNavigate();
+  const [linkedTicketId, setLinkedTicketId] = useState(() => localStorage.getItem('last_ticket_id') || null);
+  const [isDashboardPolling, setIsDashboardPolling] = useState(false);
   const messagesEndRef = React.useRef(null);
   
   // Scroll to bottom of messages
@@ -318,6 +336,35 @@ function AppContent() {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+
+  // If a ticket is linked, poll its messages so agent replies appear here
+  React.useEffect(() => {
+    if (!linkedTicketId) return;
+    let stop = false;
+    setIsDashboardPolling(true);
+    const fetchTicketMessages = async () => {
+      try {
+        const api = await import('./services/apiService.js');
+        const data = await api.getTicket(linkedTicketId);
+        // Map ticket chat_messages into dashboard chat format
+        const mapped = (data.chat_messages || []).map(m => ({
+          text: m.content,
+          sender: m.sender_type === 'user' ? 'user' : 'ai',
+          timestamp: m.timestamp
+        }));
+        // Keep intro message at top if present, then ticket messages
+        setMessages(prev => {
+          const intro = prev.length && !linkedTicketId ? prev : [];
+          return mapped.length ? mapped : prev;
+        });
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchTicketMessages();
+    const interval = setInterval(() => { if (!stop) fetchTicketMessages(); }, 5000);
+    return () => { stop = true; clearInterval(interval); setIsDashboardPolling(false); };
+  }, [linkedTicketId]);
   
   // Handle sending a message
   const handleSendMessage = async () => {
@@ -337,15 +384,26 @@ function AppContent() {
     input.value = '';
     
     try {
-      // Import the ticket service
-      const ticketService = await import('./services/ticketService.js');
+      // Import the API service
+      const { classifyMessage } = await import('./services/apiService.js');
       
       // Classify the message
-      const category = await ticketService.default.classifyMessage(message);
+      const userInfo = {
+        user_id: 'user_123',
+        user_name: 'John Doe',
+        user_email: 'john.doe@powergrid.in'
+      };
+      
+      const response = await classifyMessage(message, userInfo);
+      // Remember the ticket so dashboard chat can reflect agent responses
+      if (response.ticket_id) {
+        localStorage.setItem('last_ticket_id', response.ticket_id);
+        setLinkedTicketId(response.ticket_id);
+      }
       
       // Add AI response
       const aiResponse = {
-        text: `I've classified your query as: ${category}. Redirecting you to the appropriate dashboard...`,
+        text: `I've classified your query as: ${response.category} with ${response.priority} priority. Redirecting you to the appropriate dashboard...`,
         sender: 'ai',
         timestamp: new Date().toISOString()
       };
@@ -354,11 +412,11 @@ function AppContent() {
       
       // Redirect based on classification
       setTimeout(() => {
-        if (category === 'Hardware') {
+        if (response.category === 'Hardware & Infrastructure') {
           navigate('/category1');
-        } else if (category === 'Software') {
+        } else if (response.category === 'Software & Digital Services') {
           navigate('/category2');
-        } else {
+        } else if (response.category === 'Access & Security') {
           navigate('/category3');
         }
       }, 1500);
@@ -533,6 +591,8 @@ function AppContent() {
       >
         <Container maxWidth="xl" className="animate-fadeIn">
           <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
             <Route path="/" element={
               <>
                 {/* Welcome Header */}
@@ -899,6 +959,9 @@ function AppContent() {
                 </Grid>
               </>
             } />
+            {/* Role based dashboards */}
+            <Route path="/admin" element={<ProtectedRoute requireRole="admin"><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/home" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
             
             {/* Classification Dashboard Routes */}
             <Route path="/category1" element={<ClassificationOne />} />

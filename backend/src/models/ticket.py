@@ -4,6 +4,8 @@ from enum import Enum
 from beanie import Document
 from pydantic import BaseModel, Field
 from pymongo import IndexModel
+import random
+import string
 
 
 class TicketStatus(str, Enum):
@@ -24,16 +26,9 @@ class TicketPriority(str, Enum):
 
 
 class TicketCategory(str, Enum):
-    NETWORK = "network"
-    HARDWARE = "hardware"
-    SOFTWARE = "software"
-    ACCESS_CONTROL = "access_control"
-    EMAIL = "email"
-    VPN = "vpn"
-    PRINTER = "printer"
-    PASSWORD_RESET = "password_reset"
-    ACCOUNT_MANAGEMENT = "account_management"
-    OTHER = "other"
+    HARDWARE_INFRASTRUCTURE = "Hardware & Infrastructure"
+    SOFTWARE_DIGITAL_SERVICES = "Software & Digital Services"
+    ACCESS_SECURITY = "Access & Security"
 
 
 class TicketSource(str, Enum):
@@ -63,10 +58,21 @@ class Comment(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ChatMessage(BaseModel):
+    message_id: str = Field(default_factory=lambda: ''.join(random.choices(string.ascii_uppercase + string.digits, k=8)))
+    sender_id: str
+    sender_name: str
+    sender_type: str  # "user" or "agent"
+    content: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    is_read: bool = False
+    attachments: List[Attachment] = Field(default_factory=list)
+
+
 class AIAnalysis(BaseModel):
     classification_confidence: float
-    predicted_category: TicketCategory
-    predicted_priority: TicketPriority
+    predicted_category: str  # Changed to string to match the actual category names
+    predicted_priority: str  # Changed to string to match the actual priority names
     suggested_assignee: Optional[str] = None
     sentiment_score: float
     keywords: List[str] = Field(default_factory=list)
@@ -104,7 +110,7 @@ class Ticket(Document):
     # Classification
     status: TicketStatus = TicketStatus.OPEN
     priority: TicketPriority = TicketPriority.MEDIUM
-    category: TicketCategory = TicketCategory.OTHER
+    category: TicketCategory = TicketCategory.HARDWARE_INFRASTRUCTURE
     subcategory: Optional[str] = None
     
     # Source and metadata
@@ -121,6 +127,7 @@ class Ticket(Document):
     # Communication
     comments: List[Comment] = Field(default_factory=list)
     attachments: List[Attachment] = Field(default_factory=list)
+    chat_messages: List[ChatMessage] = Field(default_factory=list)
     
     # Resolution
     resolution: Optional[str] = None
@@ -169,10 +176,12 @@ class Ticket(Document):
             IndexModel([("sla_info.is_breached", 1)])
         ]
 
-    def generate_ticket_number(self) -> str:
+    @staticmethod
+    def generate_ticket_number() -> str:
         """Generate a unique ticket number"""
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        return f"PG-{timestamp}"
+        random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+        return f"PG-{timestamp}-{random_suffix}"
     
     class Config:
         json_schema_extra = {
@@ -182,7 +191,7 @@ class Ticket(Document):
                 "requester_email": "employee@powergrid.in",
                 "requester_name": "Jane Smith",
                 "priority": "medium",
-                "category": "vpn",
+                "category": "Software & Digital Services",
                 "source": "web_form",
                 "location": "Mumbai",
                 "tags": ["vpn", "remote_access"]

@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     
     # MongoDB Configuration
-    MONGODB_URL: str = "mongodb://localhost:27017"
-    MONGODB_DB_NAME: str = "powergrid_tickets"
+    MONGODB_URL: str = "mongodb+srv://anishshetty2417:Anish123@database.aw2ek.mongodb.net/"
+    MONGODB_DB_NAME: str = "food_ecommerce"
     
     # Redis Configuration
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -67,7 +67,16 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     
     # CORS Configuration
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:3000", 
+        "http://127.0.0.1:3000",
+        "http://localhost:5173", 
+        "http://127.0.0.1:5173",
+        "http://localhost:5174", 
+        "http://127.0.0.1:5174",
+        "http://localhost:5175", 
+        "http://127.0.0.1:5175"
+    ]
     ALLOWED_HOSTS: List[str] = ["localhost", "127.0.0.1"]
     
     # File Upload Settings

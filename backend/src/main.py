@@ -13,6 +13,7 @@ from src.models import User, Ticket, Team, Notification, AuditLog
 from src.models.knowledge_base import KnowledgeArticle, TicketResolution, CommonIssuePattern
 from src.api import auth, tickets, users, dashboard, chatbot, integrations, knowledge_base, classifications
 from src.services.email_service import email_service
+from src.services.socket_service import socket_app
 
 # Setup logging
 logger = setup_logging()
@@ -125,7 +126,11 @@ app.include_router(tickets.router, prefix="/api/v1/tickets", tags=["Tickets"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(dashboard.router, prefix="/api/v1/dashboard", tags=["Dashboard"])
 app.include_router(classifications.router, prefix="/api/v1/classifications", tags=["Classifications"])
+app.include_router(chatbot.router, prefix="/api/v1/chatbot", tags=["Chatbot"])
 
+
+# Mount Socket.IO app
+app.mount("/socket.io", socket_app)
 
 if __name__ == "__main__":
     uvicorn.run(

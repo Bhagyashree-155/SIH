@@ -24,3 +24,6 @@ aiohttp
 # Security
 cryptography
 bcrypt
+
+# Socket.IO for real-time communication
+python-socketio[asyncio_client]

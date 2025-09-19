@@ -162,18 +162,20 @@ class GeminiAIService:
         self.base_url = settings.GEMINI_API_URL
         self.model_name = "gemini-1.5-flash"  # Using the latest efficient model
         
-        # Predefined categories for POWERGRID
+        # Three main categories for POWERGRID IT support
         self.categories = {
-            "VPN": ["connection", "access", "authentication", "slow", "disconnect"],
-            "Password": ["reset", "forgot", "expired", "change", "unlock"],
-            "Email": ["quota", "sync", "access", "attachment", "delivery"],
-            "Hardware": ["laptop", "desktop", "monitor", "keyboard", "mouse", "printer"],
-            "Software": ["installation", "update", "license", "crash", "error"],
-            "Network": ["internet", "wifi", "connectivity", "slow", "timeout"],
-            "Access Control": ["permissions", "folder", "drive", "application", "system"],
-            "Printer": ["print", "scan", "jam", "quality", "driver"],
-            "GLPI": ["asset", "inventory", "tracking", "update", "sync"],
-            "SAP": ["solman", "transaction", "login", "performance", "error"]
+            "Hardware & Infrastructure": {
+                "keywords": ["hardware", "laptop", "desktop", "monitor", "keyboard", "mouse", "printer", "server", "network", "router", "switch", "cable", "physical", "infrastructure", "system failure", "crash", "broken", "not working", "power", "electricity"],
+                "description": "Hardware issues, system failures, and physical infrastructure problems"
+            },
+            "Software & Digital Services": {
+                "keywords": ["software", "application", "program", "app", "error", "bug", "crash", "installation", "update", "license", "digital", "service", "online", "web", "browser", "email", "vpn", "connection", "login", "authentication"],
+                "description": "Software issues, application errors, and digital service problems"
+            },
+            "Access & Security": {
+                "keywords": ["access", "permission", "security", "password", "login", "authentication", "authorization", "user", "account", "role", "privilege", "folder", "drive", "file", "data", "privacy", "encryption", "firewall", "antivirus"],
+                "description": "Access control, permissions, and security-related issues"
+            }
         }
         
     async def classify_ticket(self, user_query: str, user_context: Optional[Dict] = None) -> ClassificationResult:
@@ -310,20 +312,23 @@ class GeminiAIService:
             - Location: {user_context.get('location', 'Unknown')}
             """
         
-        categories_str = ", ".join(self.categories.keys())
+        categories_info = ""
+        for category, info in self.categories.items():
+            categories_info += f"- {category}: {info['description']}\n"
         
         prompt = f"""
-        You are an AI assistant for POWERGRID's IT helpdesk. Analyze the following user query and provide a structured classification.
+        You are an AI assistant for POWERGRID's IT helpdesk. Analyze the following user query and classify it into one of the three main categories.
         
         User Query: "{user_query}"
         {context_info}
         
-        Available Categories: {categories_str}
+        Available Categories:
+        {categories_info}
         
         Please analyze and respond with a JSON object containing:
         {{
-            "category": "most appropriate category from the list",
-            "subcategory": "more specific subcategory if applicable",
+            "category": "exact category name from the three options above",
+            "subcategory": "more specific subcategory if applicable (e.g., 'Laptop Hardware', 'Email Issues', 'Password Reset')",
             "priority": "Low/Medium/High/Urgent/Critical based on business impact",
             "confidence": "confidence score between 0.0 and 1.0",
             "reasoning": "brief explanation of your classification decision",
@@ -333,12 +338,16 @@ class GeminiAIService:
             "possible_root_causes": ["list", "of", "potential", "causes"]
         }}
         
+        Classification Guidelines:
+        1. Hardware & Infrastructure: Physical devices, servers, network equipment, power issues, system crashes
+        2. Software & Digital Services: Applications, programs, online services, email, VPN, web browsers, digital tools
+        3. Access & Security: User accounts, permissions, passwords, security settings, file access, authentication
+        
         Consider these factors:
         1. POWERGRID operates critical power infrastructure
-        2. VPN and access issues affect remote work capability
-        3. Email issues impact communication
-        4. Hardware failures can halt productivity
-        5. GLPI and SAP systems are business-critical
+        2. Hardware failures can halt productivity and operations
+        3. Software issues affect digital workflows and communication
+        4. Access and security issues impact data protection and user productivity
         
         Respond only with valid JSON, no additional text.
         """
@@ -528,88 +537,89 @@ class GeminiAIService:
     
     def _fallback_classification(self, user_query: str) -> ClassificationResult:
         """Fallback classification using keyword matching"""
-        # Simple keyword-based classification
-        category = "Other"
-        subcategory = None
-        priority = "Medium"
-        confidence = 0.5
+        query_lower = user_query.lower()
+        best_category = "Hardware & Infrastructure"  # Default category
+        max_matches = 0
+        confidence = 0.3
         keywords = []
         
         # Check for category matches
-        for cat, keywords_list in self.categories.items():
-            for keyword in keywords_list:
-                if keyword.lower() in user_query.lower():
-                    category = cat
-                    keywords.append(keyword)
-                    
+        for category, info in self.categories.items():
+            matches = sum(1 for keyword in info["keywords"] if keyword.lower() in query_lower)
+            if matches > max_matches:
+                max_matches = matches
+                best_category = category
+                confidence = min(0.7, 0.3 + (matches * 0.1))
+                keywords = [kw for kw in info["keywords"] if kw.lower() in query_lower]
+        
         # Check for priority indicators
-        urgent_words = ["urgent", "critical", "emergency", "immediately", "asap"]
+        priority = "Medium"
+        urgent_words = ["urgent", "critical", "emergency", "immediately", "asap", "broken", "not working"]
         for word in urgent_words:
-            if word in user_query.lower():
+            if word in query_lower:
                 priority = "High"
                 break
                 
         return ClassificationResult(
-            category=category,
-            subcategory=subcategory,
+            category=best_category,
+            subcategory=None,
             priority=priority,
             confidence=confidence,
             reasoning="Fallback classification based on keyword matching",
             suggested_keywords=keywords,
-            urgency_level="Medium",
+            urgency_level="next_day",
             sentiment_score=0.0,
             similar_tickets=[],
             auto_resolution_possible=False,
             suggested_assignee=None,
             estimated_resolution_time=60  # Default 1 hour
         )
-        
-        for category, keywords in self.categories.items():
-            matches = sum(1 for keyword in keywords if keyword.lower() in query_lower)
-            if matches > 0:
-                best_category = category
-                confidence = min(0.7, 0.3 + (matches * 0.1))
-                break
-        
-        return ClassificationResult(
-            category=best_category,
-            subcategory=None,
-            priority="Medium",
-            confidence=confidence,
-            reasoning="Fallback classification using keyword matching",
-            suggested_keywords=[],
-            urgency_level="next_day"
-        )
     
     def _get_fallback_solutions(self, classification: ClassificationResult) -> List[SolutionRecommendation]:
         """Provide fallback solutions based on category"""
         fallback_solutions = {
-            "Password": [
+            "Hardware & Infrastructure": [
                 SolutionRecommendation(
                     solution_id=None,
-                    title="Self-Service Password Reset",
-                    description="Use POWERGRID's self-service portal to reset your password",
+                    title="Hardware Troubleshooting",
+                    description="Basic steps to resolve hardware issues",
                     steps=[
-                        "Go to https://selfservice.powergrid.in",
-                        "Click on 'Forgot Password'",
-                        "Enter your employee ID",
-                        "Follow the instructions sent to your registered email"
+                        "Check all cable connections",
+                        "Restart the device",
+                        "Check power supply",
+                        "Contact IT support for hardware replacement if needed"
                     ],
-                    solution_type=SolutionType.SELF_SERVICE_LINK,
-                    confidence=0.8,
-                    estimated_time=5
+                    solution_type=SolutionType.MANUAL_STEPS,
+                    confidence=0.7,
+                    estimated_time=30
                 )
             ],
-            "VPN": [
+            "Software & Digital Services": [
                 SolutionRecommendation(
                     solution_id=None,
-                    title="VPN Connection Troubleshooting",
-                    description="Basic steps to resolve VPN connectivity issues",
+                    title="Software Troubleshooting",
+                    description="Basic steps to resolve software issues",
                     steps=[
-                        "Check your internet connection",
-                        "Restart the VPN client",
-                        "Try different VPN servers",
-                        "Contact IT if issue persists"
+                        "Restart the application",
+                        "Check for software updates",
+                        "Clear cache and temporary files",
+                        "Contact IT support if issue persists"
+                    ],
+                    solution_type=SolutionType.MANUAL_STEPS,
+                    confidence=0.7,
+                    estimated_time=20
+                )
+            ],
+            "Access & Security": [
+                SolutionRecommendation(
+                    solution_id=None,
+                    title="Access & Security Support",
+                    description="Steps to resolve access and security issues",
+                    steps=[
+                        "Verify your login credentials",
+                        "Check if your account is active",
+                        "Contact IT support for account issues",
+                        "Follow security protocols"
                     ],
                     solution_type=SolutionType.MANUAL_STEPS,
                     confidence=0.7,

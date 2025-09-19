@@ -26,11 +26,11 @@ class TicketIngestionService:
         self.solman_base_url = settings.SOLMAN_URL
         self.email_polling_interval = settings.EMAIL_POLLING_INTERVAL
         self.email_credentials = {
-            "username": settings.EMAIL_USERNAME,
-            "password": settings.EMAIL_PASSWORD,
-            "server": settings.EMAIL_SERVER,
-            "port": settings.EMAIL_PORT,
-            "use_ssl": settings.EMAIL_USE_SSL
+            "username": settings.SMTP_USERNAME,
+            "password": settings.SMTP_PASSWORD,
+            "server": settings.SMTP_HOST,
+            "port": settings.SMTP_PORT,
+            "use_ssl": True  # Default to True for SMTP
         }
         self.source_adapters = {
             TicketSource.GLPI: self.ingest_from_glpi,

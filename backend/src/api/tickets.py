@@ -437,37 +437,6 @@ async def ingest_unified_ticket(source: TicketSource, data: Dict[str, Any], api_
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error ingesting ticket: {str(e)}")
-                classification = ClassificationResult(
-                    category=ticket.category.value if ticket.category else "Unknown",
-                    subcategory=None,
-                    priority=ticket.priority.value,
-                    confidence=0.8,
-                    reasoning="Feedback submission",
-                    suggested_keywords=[],
-                    urgency_level="normal"
-                )
-                
-                resolution_time = int((ticket.updated_at - ticket.created_at).total_seconds() / 60)
-                
-                await knowledge_service.record_resolution(
-                    ticket_id=str(ticket.id),
-                    original_query=ticket.description,
-                    classification=classification,
-                    resolution_method="manual_resolution",
-                    resolved_successfully=feedback.helpful,
-                    resolution_time_minutes=resolution_time,
-                    user_feedback=feedback.feedback,
-                    user_satisfaction=feedback.rating
-                )
-            except Exception as learning_error:
-                # Don't fail the feedback submission if learning fails
-                pass
-        
-        return {"message": "Feedback submitted successfully"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
 
 
 @router.get("/search/suggestions")
