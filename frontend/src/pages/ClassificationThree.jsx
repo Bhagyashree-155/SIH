@@ -34,8 +34,9 @@ import {
 } from '@mui/icons-material';
 import ChatInterface from '../components/ChatInterface';
 import { apiService } from '../services/apiService';
+import authService from '../services/authService';
 
-const ClassificationThree = () => {
+const ClassificationThree = ({ onCategoryResponse }) => {
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -95,8 +96,8 @@ const ClassificationThree = () => {
       
       const userInfo = {
         user_id: 'user_123',
-        user_name: 'John Doe',
-        user_email: 'john.doe@powergrid.in'
+        user_name: authService.getUsername() || 'User',
+        user_email: authService.getEmail() || 'user@example.com'
       };
 
       const response = await apiService.classifyMessage(newQuery, userInfo);
@@ -129,9 +130,19 @@ const ClassificationThree = () => {
           unread_count: 0
         }, ...prev]);
         
+        // Send response to AI Assistant in dashboard
+        if (onCategoryResponse) {
+          onCategoryResponse(`✅ Access & Security ticket created: ${response.ticket_number}\n\n**Query:** ${newQuery}\n**Priority:** ${response.priority}\n**Subcategory:** ${response.subcategory}\n**Confidence:** ${response.confidence}%\n\n**Suggested Solutions:**\n${response.suggested_solutions?.join('\n• ') || 'No specific solutions provided'}`);
+        }
+        
         loadStats();
       } else {
         setError(`This query was classified as "${response.category}" and should be handled in the appropriate category.`);
+        
+        // Send error to AI Assistant
+        if (onCategoryResponse) {
+          onCategoryResponse(`❌ Query misclassified: "${newQuery}" was classified as "${response.category}" instead of Access & Security. Please redirect to the correct category tab.`);
+        }
       }
       
       setNewQuery('');

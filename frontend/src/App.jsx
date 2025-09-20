@@ -9,6 +9,7 @@ import Signup from './pages/Signup';
 import AdminDashboard from './pages/AdminDashboard';
 import UserDashboard from './pages/UserDashboard';
 import AIChatPage from './pages/AIChatPage';
+import Tickets from './pages/Tickets';
 import ProtectedRoute from './components/ProtectedRoute';
 import { 
   Box, 
@@ -38,7 +39,10 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  Tooltip
+  Tooltip,
+  Tabs,
+  Tab,
+  CircularProgress
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -63,9 +67,12 @@ import {
   WifiOff,
   Security,
   MoreVert,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Error as ErrorIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import authService from './services/authService';
+import { apiService } from './services/apiService';
 import './App.css';
 
 const drawerWidth = 280;
@@ -79,7 +86,11 @@ function App() {
 }
 
 function AppContent() {
+  const [activeTab, setActiveTab] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
+  const [ticketCount, setTicketCount] = useState(0);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -103,15 +114,14 @@ function AppContent() {
   
   const menuItems = React.useMemo(() => {
     const common = [
-      { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon, color: '#3b82f6', path: '/' },
-      { id: 'tickets', label: 'Tickets', icon: TicketIcon, color: '#10b981', badge: 12, path: '/tickets' },
-      { id: 'knowledge', label: 'Knowledge Base', icon: KnowledgeIcon, color: '#8b5cf6', path: '/knowledge' },
+      { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon, color: '#3b82f6', path: '/', tabIndex: 0 },
+      { id: 'tickets', label: 'Tickets', icon: TicketIcon, color: '#10b981', badge: ticketCount, path: '/tickets' },
       { id: 'chat', label: 'AI Chat', icon: ChatIcon, color: '#06b6d4', path: '/chat' },
     ];
     const adminOnly = [
-      { id: 'category1', label: 'Hardware & Infrastructure', icon: Computer, color: '#3b82f6', path: '/category1' },
-      { id: 'category2', label: 'Software & Digital Services', icon: BugReport, color: '#10b981', path: '/category2' },
-      { id: 'category3', label: 'Access & Security', icon: Security, color: '#f59e0b', path: '/category3' },
+      { id: 'category1', label: 'Hardware & Infrastructure', icon: Computer, color: '#3b82f6', path: '/', tabIndex: 1 },
+      { id: 'category2', label: 'Software & Digital Services', icon: BugReport, color: '#10b981', path: '/', tabIndex: 2 },
+      { id: 'category3', label: 'Access & Security', icon: Security, color: '#f59e0b', path: '/', tabIndex: 3 },
       { id: 'users', label: 'Users', icon: PeopleIcon, color: '#f59e0b', path: '/users' },
       { id: 'settings', label: 'Settings', icon: SettingsIcon, color: '#6b7280', path: '/settings' },
     ];
@@ -122,12 +132,13 @@ function AppContent() {
     
     if (!isLoggedIn) return authOptions.concat(common);
     return role === 'admin' ? common.concat(adminOnly) : common;
-  }, [isLoggedIn, role]);
+  }, [isLoggedIn, role, ticketCount]);
 
-  const stats = [
+  // Dynamic stats based on dashboard data
+  const stats = dashboardData ? [
     { 
       title: 'Total Tickets', 
-      value: '1,234', 
+      value: dashboardData.stats.total_tickets.toLocaleString(), 
       change: '+12%', 
       icon: Assignment, 
       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -135,7 +146,7 @@ function AppContent() {
     },
     { 
       title: 'Open Tickets', 
-      value: '456', 
+      value: dashboardData.stats.open_tickets.toLocaleString(), 
       change: '+5%', 
       icon: Schedule, 
       gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -143,7 +154,7 @@ function AppContent() {
     },
     { 
       title: 'Resolved Today', 
-      value: '89', 
+      value: dashboardData.stats.resolved_today.toLocaleString(), 
       change: '+23%', 
       icon: CheckCircle, 
       gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
@@ -151,61 +162,16 @@ function AppContent() {
     },
     { 
       title: 'Avg Response Time', 
-      value: '2.4h', 
+      value: `${dashboardData.stats.avg_response_time_hours}h`, 
       change: '-8%', 
       icon: SpeedIcon, 
       gradient: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
       progress: 78
     },
-  ];
+  ] : [];
 
-  const recentTickets = [
-    { 
-      id: 'PG-2025001', 
-      title: 'VPN Connection Issue', 
-      user: 'John Smith', 
-      priority: 'High', 
-      status: 'Open', 
-      time: '2 hours ago',
-      category: 'Network'
-    },
-    { 
-      id: 'PG-2025002', 
-      title: 'Password Reset Request', 
-      user: 'Sarah Johnson', 
-      priority: 'Medium', 
-      status: 'In Progress', 
-      time: '4 hours ago',
-      category: 'Access Control'
-    },
-    { 
-      id: 'PG-2025003', 
-      title: 'Software Installation', 
-      user: 'Mike Wilson', 
-      priority: 'Low', 
-      status: 'Resolved', 
-      time: '1 day ago',
-      category: 'Software'
-    },
-    { 
-      id: 'PG-2025004', 
-      title: 'Hardware Replacement', 
-      user: 'Lisa Brown', 
-      priority: 'Urgent', 
-      status: 'Open', 
-      time: '30 minutes ago',
-      category: 'Hardware'
-    },
-    { 
-      id: 'PG-2025005', 
-      title: 'Email Configuration', 
-      user: 'David Lee', 
-      priority: 'Medium', 
-      status: 'Closed', 
-      time: '3 days ago',
-      category: 'Email'
-    }
-  ];
+  // Dynamic recent tickets based on dashboard data
+  const recentTickets = dashboardData ? dashboardData.recent_tickets : [];
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
@@ -243,25 +209,149 @@ function AppContent() {
   const navigate = useNavigate();
   const currentPath = location.pathname;
   
-  // Find active section based on path
+  // Find active section based on path and current tab
   const getActiveSection = React.useCallback((path) => {
-    if (path === '/') return 'dashboard';
+    if (path === '/') {
+      // For the main page, determine active section based on current tab
+      switch (activeTab) {
+        case 0: return 'dashboard';
+        case 1: return 'category1';
+        case 2: return 'category2';
+        case 3: return 'category3';
+        default: return 'dashboard';
+      }
+    }
     const item = menuItems.find(item => item.path === path);
     return item ? item.id : 'dashboard';
-  }, [menuItems]);
+  }, [menuItems, activeTab]);
   
   const [activeSection, setActiveSection] = useState(getActiveSection(currentPath));
   
-  // Update active section when location changes
+  // Update active section when location changes or tab changes
   React.useEffect(() => {
     setActiveSection(getActiveSection(currentPath));
-  }, [currentPath, getActiveSection]);
+  }, [currentPath, getActiveSection, activeTab]);
   
   const handleMenuClick = (item) => {
     setActiveSection(item.id);
-    navigate(item.path);
+    
+    // If the item has a tabIndex, switch to that tab instead of navigating
+    if (item.tabIndex !== undefined) {
+      setActiveTab(item.tabIndex);
+      navigate('/'); // Ensure we're on the main page
+    } else {
+      navigate(item.path);
+    }
+    
     setMobileOpen(false); // Close drawer on mobile
   };
+
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    // Reload dashboard data when switching to Dashboard tab
+    if (newValue === 0) {
+      loadDashboardData();
+    }
+  };
+
+  // Function to handle AI responses from category tabs
+  const handleCategoryResponse = (response) => {
+    const aiResponse = {
+      text: response,
+      sender: 'ai',
+      timestamp: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, aiResponse]);
+  };
+
+  // Load dashboard data
+  const loadDashboardData = async () => {
+    try {
+      setIsLoadingDashboard(true);
+      console.log('Loading dashboard data...');
+      
+      // Get user email from localStorage
+      const userEmail = authService.getEmail();
+      console.log('User email for dashboard:', userEmail);
+      
+      if (!userEmail) {
+        console.warn('No user email found, using fallback data');
+        setDashboardData({
+          stats: {
+            total_tickets: 0,
+            open_tickets: 0,
+            resolved_today: 0,
+            avg_response_time_hours: 0
+          },
+          recent_tickets: []
+        });
+        setTicketCount(0);
+        return;
+      }
+      
+      const data = await apiService.getDashboardData(userEmail);
+      console.log('Dashboard data loaded:', data);
+      setDashboardData(data);
+      setTicketCount(data.stats.total_tickets || 0);
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      // Set fallback data
+      setDashboardData({
+        stats: {
+          total_tickets: 0,
+          open_tickets: 0,
+          resolved_today: 0,
+          avg_response_time_hours: 0
+        },
+        recent_tickets: []
+      });
+      setTicketCount(0);
+    } finally {
+      setIsLoadingDashboard(false);
+    }
+  };
+
+  // Handle ticket resolution
+  const handleResolveTicket = async (ticketId) => {
+    try {
+      const userEmail = authService.getEmail();
+      if (!userEmail) {
+        console.error('No user email found for ticket resolution');
+        return;
+      }
+      
+      await apiService.resolveTicket(ticketId, userEmail);
+      // Reload dashboard data to update stats
+      await loadDashboardData();
+      
+      // Add success message to AI chat
+      const successMessage = {
+        text: `✅ Ticket ${ticketId} has been marked as resolved! The "Resolved Today" counter has been updated.`,
+        sender: 'ai',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, successMessage]);
+    } catch (error) {
+      console.error('Error resolving ticket:', error);
+      const errorMessage = {
+        text: `❌ Error resolving ticket: ${error.message}`,
+        sender: 'ai',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+
+  // Load dashboard data on component mount
+  React.useEffect(() => {
+    console.log('Component mounted, loading dashboard data...');
+    loadDashboardData();
+  }, []);
+
+  // Debug: Log when dashboardData changes
+  React.useEffect(() => {
+    console.log('Dashboard data updated:', dashboardData);
+  }, [dashboardData]);
   
   const drawer = (
     <Box sx={{ height: '100%', bgcolor: 'white', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
@@ -410,8 +500,8 @@ function AppContent() {
       // Classify the message
       const userInfo = {
         user_id: 'user_123',
-        user_name: 'John Doe',
-        user_email: 'john.doe@powergrid.in'
+        user_name: authService.getUsername() || 'User',
+        user_email: authService.getEmail() || 'user@example.com'
       };
       
       const response = await classifyMessage(message, userInfo);
@@ -594,32 +684,154 @@ function AppContent() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/tickets" element={<Tickets />} />
             <Route path="/" element={
               <>
                 {/* Welcome Header */}
-                <Box sx={{ mb: 5 }}>
-                  <Typography 
-                    variant="h3" 
-                    sx={{ 
-                      fontWeight: 700, 
-                      color: '#1e293b', 
-                      mb: 1,
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent'
+                <Box sx={{ mb: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <Box>
+                    <Typography 
+                      variant="h3" 
+                      sx={{ 
+                        fontWeight: 700, 
+                        color: '#1e293b', 
+                        mb: 1,
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent'
+                      }}
+                    >
+                      Welcome back, {isLoggedIn ? (username || (role === 'admin' ? 'Admin' : 'User')) : 'Guest'}! 👋
+                    </Typography>
+                    <Typography variant="h6" sx={{ color: '#64748b', fontWeight: 500 }}>
+                      Here's what's happening with your tickets today
+                    </Typography>
+                  </Box>
+                  
+                  {/* Refresh Button */}
+                  <Button
+                    variant="outlined"
+                    onClick={loadDashboardData}
+                    disabled={isLoadingDashboard}
+                    startIcon={isLoadingDashboard ? <CircularProgress size={16} /> : <RefreshIcon />}
+                    sx={{
+                      borderColor: '#3b82f6',
+                      color: '#3b82f6',
+                      '&:hover': {
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(59, 130, 246, 0.04)'
+                      }
                     }}
                   >
-                    Welcome back, {isLoggedIn ? (username || (role === 'admin' ? 'Admin' : 'User')) : 'Guest'}! 👋
-                  </Typography>
-                  <Typography variant="h6" sx={{ color: '#64748b', fontWeight: 500 }}>
-                    Here's what's happening with your tickets today
-                  </Typography>
+                    {isLoadingDashboard ? 'Refreshing...' : 'Refresh'}
+                  </Button>
                 </Box>
+
+                {/* Tabbed Interface */}
+                <Box sx={{ width: '100%' }}>
+                  <Tabs 
+                    value={activeTab} 
+                    onChange={handleTabChange}
+                    sx={{
+                      borderBottom: 1,
+                      borderColor: 'divider',
+                      mb: 3,
+                      '& .MuiTab-root': {
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        fontSize: '1rem',
+                        minHeight: 48,
+                        px: 3
+                      }
+                    }}
+                  >
+                    <Tab 
+                      label="Dashboard" 
+                      icon={<DashboardIcon />} 
+                      iconPosition="start"
+                      sx={{ 
+                        color: activeTab === 0 ? '#3b82f6' : '#64748b',
+                        '&.Mui-selected': {
+                          color: '#3b82f6'
+                        }
+                      }}
+                    />
+                    <Tab 
+                      label="Hardware & Infrastructure" 
+                      icon={<Computer />} 
+                      iconPosition="start"
+                      sx={{ 
+                        color: activeTab === 1 ? '#3b82f6' : '#64748b',
+                        '&.Mui-selected': {
+                          color: '#3b82f6'
+                        }
+                      }}
+                    />
+                    <Tab 
+                      label="Software & Digital Services" 
+                      icon={<BugReport />} 
+                      iconPosition="start"
+                      sx={{ 
+                        color: activeTab === 2 ? '#10b981' : '#64748b',
+                        '&.Mui-selected': {
+                          color: '#10b981'
+                        }
+                      }}
+                    />
+                    <Tab 
+                      label="Access & Security" 
+                      icon={<Security />} 
+                      iconPosition="start"
+                      sx={{ 
+                        color: activeTab === 3 ? '#f59e0b' : '#64748b',
+                        '&.Mui-selected': {
+                          color: '#f59e0b'
+                        }
+                      }}
+                    />
+                  </Tabs>
+
+                  {/* Tab Content */}
+                  {activeTab === 0 && (
+                    <>
 
                 {/* Statistics Cards */}
                 <Grid container spacing={4} sx={{ mb: 6 }}>
-                  {stats.map((stat, index) => (
-                    <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={index}>
+                  {isLoadingDashboard ? (
+                    // Loading skeleton for stats cards
+                    Array.from({ length: 4 }).map((_, index) => (
+                      <Grid item xs={12} sm={6} lg={3} key={index}>
+                        <Card 
+                          className="glass-card"
+                          sx={{
+                            height: '100%',
+                            animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                          }}
+                        >
+                          <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+                              <Box 
+                                sx={{
+                                  width: 56,
+                                  height: 56,
+                                  borderRadius: '16px',
+                                  bgcolor: '#e5e7eb'
+                                }}
+                              />
+                              <Box sx={{ width: 40, height: 20, bgcolor: '#e5e7eb', borderRadius: 1 }} />
+                            </Box>
+                            <Box sx={{ flex: 1 }}>
+                              <Box sx={{ width: 80, height: 40, bgcolor: '#e5e7eb', borderRadius: 1, mb: 1 }} />
+                              <Box sx={{ width: 120, height: 20, bgcolor: '#e5e7eb', borderRadius: 1, mb: 2 }} />
+                              <Box sx={{ width: '100%', height: 6, bgcolor: '#e5e7eb', borderRadius: 3 }} />
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))
+                  ) : (
+                    stats.map((stat, index) => (
+                    <Grid item xs={12} sm={6} lg={3} key={index}>
                       <Card 
                         className="glass-card"
                         sx={{
@@ -709,7 +921,8 @@ function AppContent() {
                         </CardContent>
                       </Card>
                     </Grid>
-                  ))}
+                    ))
+                  )}
                 </Grid>
 
                 {/* Ticket Classifications */}
@@ -720,131 +933,9 @@ function AppContent() {
                   <TicketClassification />
                 </Box>
                 
-                {/* Main Content Area */}
+                {/* AI Assistant */}
                 <Grid container spacing={4}>
-                  {/* Recent Tickets Table */}
-                  <Grid size={{ xs: 12, lg: 8 }}>
-                    <Card className="glass-card" sx={{ height: 'fit-content' }}>
-                      <Box sx={{ p: 3, borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="h5" sx={{ fontWeight: 700, color: '#1e293b' }}>
-                            Recent Tickets
-                          </Typography>
-                          <Button 
-                            variant="outlined" 
-                            size="small"
-                            sx={{ 
-                              borderRadius: '20px',
-                              textTransform: 'none',
-                              borderColor: '#3b82f6',
-                              color: '#3b82f6',
-                              '&:hover': {
-                                borderColor: '#2563eb',
-                                backgroundColor: '#eff6ff'
-                              }
-                            }}
-                          >
-                            View All
-                          </Button>
-                        </Box>
-                      </Box>
-                      <Box sx={{ overflowX: 'auto' }}>
-                        <Table>
-                          <TableHead>
-                            <TableRow>
-                              <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.875rem' }}>Ticket ID</TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.875rem' }}>Title</TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.875rem' }}>User</TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.875rem' }}>Priority</TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.875rem' }}>Status</TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.875rem' }}>Time</TableCell>
-                              <TableCell sx={{ fontWeight: 600, color: '#64748b', fontSize: '0.875rem' }}>Actions</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {recentTickets.map((ticket) => {
-                              const CategoryIcon = getCategoryIcon(ticket.category);
-                              return (
-                                <TableRow 
-                                  key={ticket.id}
-                                  sx={{ 
-                                    '&:hover': { backgroundColor: '#f8fafc' },
-                                    borderBottom: '1px solid rgba(0,0,0,0.05)'
-                                  }}
-                                >
-                                  <TableCell>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                      <CategoryIcon sx={{ fontSize: 16, color: '#64748b' }} />
-                                      <Typography variant="body2" sx={{ fontWeight: 600, color: '#3b82f6' }}>
-                                        {ticket.id}
-                                      </Typography>
-                                    </Box>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#1e293b' }}>
-                                      {ticket.title}
-                                    </Typography>
-                                    <Typography variant="caption" sx={{ color: '#64748b' }}>
-                                      {ticket.category}
-                                    </Typography>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                      <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem', bgcolor: '#3b82f6' }}>
-                                        {ticket.user.split(' ').map(n => n[0]).join('')}
-                                      </Avatar>
-                                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                        {ticket.user}
-                                      </Typography>
-                                    </Box>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Chip 
-                                      label={ticket.priority} 
-                                      size="small"
-                                      sx={{ 
-                                        backgroundColor: getPriorityColor(ticket.priority) + '20',
-                                        color: getPriorityColor(ticket.priority),
-                                        fontWeight: 600,
-                                        fontSize: '0.75rem',
-                                        height: 24
-                                      }}
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Chip 
-                                      label={ticket.status} 
-                                      size="small"
-                                      sx={{ 
-                                        backgroundColor: getStatusColor(ticket.status) + '20',
-                                        color: getStatusColor(ticket.status),
-                                        fontWeight: 600,
-                                        fontSize: '0.75rem',
-                                        height: 24
-                                      }}
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Typography variant="body2" sx={{ color: '#64748b' }}>
-                                      {ticket.time}
-                                    </Typography>
-                                  </TableCell>
-                                  <TableCell>
-                                    <IconButton size="small" sx={{ color: '#64748b' }}>
-                                      <MoreVert sx={{ fontSize: 16 }} />
-                                    </IconButton>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </Box>
-                    </Card>
-                  </Grid>
-                  
-                  {/* AI Assistant */}
-                  <Grid size={{ xs: 12, lg: 4 }}>
+                  <Grid item xs={12} lg={6}>
                     <Card className="glass-card" sx={{ height: '600px' }}>
                       <Box sx={{ p: 3, borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -902,6 +993,134 @@ function AppContent() {
                           <div ref={messagesEndRef} />
                         </Box>
                         
+                        {/* Action Buttons */}
+                        <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {/* Resolved Today Button */}
+                          <Button
+                              fullWidth
+                              variant="contained"
+                              onClick={() => {
+                                // Get the first open ticket ID for resolution
+                                const openTicket = recentTickets.find(t => t.status.toLowerCase() === 'open');
+                                if (openTicket) {
+                                  handleResolveTicket(openTicket.id);
+                                } else {
+                                  const errorMessage = {
+                                    text: "❌ No open tickets available to resolve.",
+                                    sender: 'ai',
+                                    timestamp: new Date().toISOString()
+                                  };
+                                  setMessages(prev => [...prev, errorMessage]);
+                                }
+                              }}
+                              sx={{
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                color: 'white',
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                borderRadius: '12px',
+                                py: 1.5,
+                                '&:hover': {
+                                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                                }
+                              }}
+                              startIcon={<CheckCircle sx={{ fontSize: 20 }} />}
+                            >
+                              Mark Issue as Resolved Today
+                            </Button>
+
+                          {/* Satisfaction Buttons */}
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button
+                              variant="contained"
+                              onClick={async () => {
+                                try {
+                                  const userEmail = authService.getEmail();
+                                  if (!userEmail) {
+                                    console.error('No user email found for satisfaction feedback');
+                                    return;
+                                  }
+                                  
+                                  // Get the first open ticket to resolve
+                                  const openTicket = recentTickets.find(t => t.status.toLowerCase() === 'open');
+                                  if (openTicket) {
+                                    // Resolve the ticket
+                                    await apiService.resolveTicket(openTicket.id, userEmail);
+                                    
+                                    // Reload dashboard data to update stats
+                                    await loadDashboardData();
+                                    
+                                    const satisfactionMessage = {
+                                      text: `✅ Thank you! Your satisfaction has been recorded and ticket ${openTicket.ticket_number} has been marked as resolved. The "Resolved Today" counter has been updated!`,
+                                      sender: 'ai',
+                                      timestamp: new Date().toISOString()
+                                    };
+                                    setMessages(prev => [...prev, satisfactionMessage]);
+                                  } else {
+                                    const satisfactionMessage = {
+                                      text: "✅ Thank you! Your satisfaction has been recorded. This helps us improve our service.",
+                                      sender: 'ai',
+                                      timestamp: new Date().toISOString()
+                                    };
+                                    setMessages(prev => [...prev, satisfactionMessage]);
+                                  }
+                                } catch (error) {
+                                  console.error('Error resolving ticket:', error);
+                                  const errorMessage = {
+                                    text: "✅ Thank you! Your satisfaction has been recorded. This helps us improve our service.",
+                                    sender: 'ai',
+                                    timestamp: new Date().toISOString()
+                                  };
+                                  setMessages(prev => [...prev, errorMessage]);
+                                }
+                              }}
+                              sx={{
+                                flex: 1,
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                color: 'white',
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                borderRadius: '12px',
+                                py: 1,
+                                '&:hover': {
+                                  background: 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                                }
+                              }}
+                              startIcon={<CheckCircle sx={{ fontSize: 16 }} />}
+                            >
+                              Satisfied
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              onClick={() => {
+                                const dissatisfactionMessage = {
+                                  text: "❌ We're sorry to hear that. Your feedback has been recorded and will help us improve our service. Please provide more details about your issue so we can assist you better.",
+                                  sender: 'ai',
+                                  timestamp: new Date().toISOString()
+                                };
+                                setMessages(prev => [...prev, dissatisfactionMessage]);
+                                console.log('User not satisfied with the response');
+                              }}
+                              sx={{
+                                flex: 1,
+                                borderColor: '#ef4444',
+                                color: '#ef4444',
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                borderRadius: '12px',
+                                py: 1,
+                                '&:hover': {
+                                  borderColor: '#dc2626',
+                                  backgroundColor: 'rgba(239, 68, 68, 0.1)'
+                                }
+                              }}
+                              startIcon={<ErrorIcon sx={{ fontSize: 16 }} />}
+                            >
+                              Not Satisfied
+                            </Button>
+                          </Box>
+                        </Box>
+
                         {/* Chat Input */}
                         <Box>
                           <TextField
@@ -958,6 +1177,21 @@ function AppContent() {
                     </Card>
                   </Grid>
                 </Grid>
+                    </>
+                  )}
+
+                  {activeTab === 1 && (
+                    <ClassificationOne onCategoryResponse={handleCategoryResponse} />
+                  )}
+
+                  {activeTab === 2 && (
+                    <ClassificationTwo onCategoryResponse={handleCategoryResponse} />
+                  )}
+
+                  {activeTab === 3 && (
+                    <ClassificationThree onCategoryResponse={handleCategoryResponse} />
+                  )}
+                </Box>
               </>
             } />
             {/* Role based dashboards */}

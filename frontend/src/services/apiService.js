@@ -38,7 +38,7 @@ export const classifyMessage = async (message, userInfo) => {
       message,
       user_id: userInfo.user_id || 'user_123',
       user_name: userInfo.user_name || 'John Doe',
-      user_email: userInfo.user_email || 'john.doe@powergrid.in',
+      user_email: userInfo.user_email || 'user@example.com',
       context: userInfo.context || {}
     });
     return response.data;
@@ -93,6 +93,46 @@ export const getCategories = async () => {
     return response.data;
   } catch (error) {
     console.error('Error getting categories:', error);
+    throw error;
+  }
+};
+
+// Dashboard API calls
+export const getDashboardData = async (userEmail) => {
+  try {
+    console.log('Making API call to /dashboard/ with user email:', userEmail);
+    const response = await apiClient.get('/dashboard/', {
+      params: { user_email: userEmail }
+    });
+    console.log('Dashboard API response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting dashboard data:', error);
+    console.error('Error details:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const getDashboardStats = async (userEmail) => {
+  try {
+    const response = await apiClient.get('/dashboard/stats', {
+      params: { user_email: userEmail }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting dashboard stats:', error);
+    throw error;
+  }
+};
+
+export const resolveTicket = async (ticketId, userEmail) => {
+  try {
+    const response = await apiClient.post(`/dashboard/resolve-ticket/${ticketId}`, null, {
+      params: { user_email: userEmail }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error resolving ticket:', error);
     throw error;
   }
 };
@@ -193,6 +233,9 @@ export const apiService = {
   sendMessage,
   getTicketsByCategory,
   getCategories,
+  getDashboardData,
+  getDashboardStats,
+  resolveTicket,
   connectSocket,
   disconnectSocket
 };
